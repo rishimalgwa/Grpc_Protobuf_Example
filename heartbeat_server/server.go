@@ -41,6 +41,30 @@ func pushUserToDb(ctx context.Context, item heart_item) primitive.ObjectID {
 	return res.InsertedID.(primitive.ObjectID)
 }
 
+// two way stream
+func (*server) NormalAbnormalHeartBeat(stream heartbeat.HeartBeatService_NormalAbnormalHeartBeatServer) error {
+	fmt.Println("NormalAbnormalHeartBeat() called ")
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		bpm := req.GetBpm()
+		var result string
+		if bpm < 60 || bpm > 100 {
+			result = fmt.Sprintf("User Heartbeat of %v is Abnormal", bpm)
+		} else {
+			result = fmt.Sprintf("User Heartbeat of %v is Normal", bpm)
+
+		}
+		NAResponse := heartbeat.NormalAbnormalHeartBeatResponse{
+			Result: result,
+		}
+		fmt.Printf("Sending back response%v\n", result)
+		stream.Send(&NAResponse)
+	}
+}
+
 //one way stream (server)
 func (*server) UserHeartBeatHistory(req *heartbeat.HeartBeatHistoryRequest, stream heartbeat.HeartBeatService_UserHeartBeatHistoryServer) error {
 	fmt.Println("HeartBeatHistory() called")

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"sync"
 
 	"google.golang.org/grpc"
 )
@@ -25,6 +26,7 @@ func handleError(err error) {
 
 // two way
 func NormalAbnormalHeartBeat(c heartbeat.HeartBeatServiceClient) {
+	var wg sync.WaitGroup
 	stream, err := c.NormalAbnormalHeartBeat(context.Background())
 	handleError(err)
 	for t := 0; t < 10; t++ {
@@ -36,15 +38,19 @@ func NormalAbnormalHeartBeat(c heartbeat.HeartBeatServiceClient) {
 		fmt.Printf("sent %v\n ", newRequest)
 	}
 	stream.CloseSend()
-	for {
-		msg, err := stream.Recv()
-		handleError(err)
-		if err == io.EOF {
-			break
+	wg.Add(1)
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				wg.Done()
+				break
+			}
+			handleError(err)
+			fmt.Printf("recived %v\n", msg)
 		}
-		fmt.Printf("recived %v\n", msg)
-	}
-
+	}()
+	wg.Wait()
 }
 
 // one way stream (server)
@@ -101,5 +107,6 @@ func main() {
 	c := heartbeat.NewHeartBeatServiceClient(conn)
 	//UserHeartBeat(c)
 	//LiveHeartBeat(c)
-	UserHeartBeatHistory(c)
+	//UserHeartBeatHistory(c)
+	NormalAbnormalHeartBeat(c)
 }
